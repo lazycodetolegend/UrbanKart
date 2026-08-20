@@ -25,7 +25,10 @@ const app = express();
 // CORS must come first
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [
+      'https://urban-kart-sandy.vercel.app',
+      'https://urban-kart-git-main-sayam4.vercel.app',
+    ],
     credentials: true,
   })
 );
