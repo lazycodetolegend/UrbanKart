@@ -18,6 +18,7 @@ export const AuthProvider = ({ children }) => {
       const { data } = await api.get('/auth/me');
       setUser(data.user);
     } catch (error) {
+      localStorage.removeItem('urbankart-token');
       setUser(null);
     } finally {
       setLoading(false);
@@ -26,6 +27,9 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (email, password) => {
     const { data } = await api.post('/auth/login', { email, password });
+    if (data.token) {
+      localStorage.setItem('urbankart-token', data.token);
+    }
     setUser(data.user);
     toast.success('Welcome back!');
     return data;
@@ -33,13 +37,19 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (name, email, password) => {
     const { data } = await api.post('/auth/register', { name, email, password });
+    if (data.token) {
+      localStorage.setItem('urbankart-token', data.token);
+    }
     setUser(data.user);
     toast.success('Account created successfully!');
     return data;
   };
 
   const logout = async () => {
-    await api.post('/auth/logout');
+    try {
+      await api.post('/auth/logout');
+    } catch (e) {}
+    localStorage.removeItem('urbankart-token');
     setUser(null);
     toast.success('Logged out');
   };

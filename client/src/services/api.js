@@ -13,6 +13,18 @@ const api = axios.create({
   },
 });
 
+// Attach Authorization Bearer token from localStorage on every request
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('urbankart-token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
 // Response interceptor for error handling
 api.interceptors.response.use(
   (response) => response,
@@ -20,6 +32,11 @@ api.interceptors.response.use(
     const url = error.config?.url || '';
     const isSilentAuthCheck = url.includes('/auth/me') || url.includes('/me');
     const is401 = error.response?.status === 401;
+
+    // Clear stale local token on 401
+    if (is401) {
+      localStorage.removeItem('urbankart-token');
+    }
 
     // Never show noisy toast notifications for silent background auth checks
     if (!isSilentAuthCheck) {

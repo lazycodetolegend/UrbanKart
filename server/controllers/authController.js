@@ -25,9 +25,9 @@ export const register = async (req, res, next) => {
     });
 
     if (user) {
-      generateToken(res, user._id);
+      const token = generateToken(res, user._id);
       user.password = undefined; // Do not return password
-      res.status(201).json({ success: true, user });
+      res.status(201).json({ success: true, token, user });
     } else {
       res.status(400).json({ success: false, message: 'Invalid user data' });
     }
@@ -50,9 +50,9 @@ export const login = async (req, res, next) => {
     const user = await User.findOne({ email }).select('+password');
 
     if (user && (await user.comparePassword(password))) {
-      generateToken(res, user._id);
+      const token = generateToken(res, user._id);
       user.password = undefined; // Do not return password
-      res.json({ success: true, user });
+      res.json({ success: true, token, user });
     } else {
       res.status(401).json({ success: false, message: 'Invalid email or password' });
     }

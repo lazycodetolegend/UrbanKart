@@ -1,14 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { FaRupeeSign, FaShoppingBag, FaBox, FaUsers, FaSync, FaExclamationTriangle, FaArrowRight } from 'react-icons/fa';
+import { Link, useNavigate } from 'react-router-dom';
+import { FaRupeeSign, FaShoppingBag, FaBox, FaUsers, FaSync, FaExclamationTriangle, FaArrowRight, FaShieldAlt } from 'react-icons/fa';
 import api from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import { formatPrice } from '../../utils/formatPrice';
+import { useAuth } from '../../context/AuthContext';
 
 const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loggingIn, setLoggingIn] = useState(false);
+  const { user, login } = useAuth();
+  const navigate = useNavigate();
 
   const fetchStats = async () => {
     try {
@@ -19,7 +23,11 @@ const AdminDashboard = () => {
       setStats(data);
     } catch (err) {
       console.error('Failed to fetch dashboard stats:', err);
-      setError('Failed to fetch dashboard statistics. Please ensure you are logged in as admin.');
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setError('Admin session not detected or expired. Please sign in with your administrator account.');
+      } else {
+        setError(err.response?.data?.message || 'Failed to fetch dashboard statistics. Please ensure the server is running.');
+      }
     } finally {
       setLoading(false);
     }
@@ -28,6 +36,18 @@ const AdminDashboard = () => {
   useEffect(() => {
     fetchStats();
   }, []);
+
+  const handleQuickAdminLogin = async () => {
+    setLoggingIn(true);
+    try {
+      await login('admin@urbankart.com', 'password123');
+      await fetchStats();
+    } catch (err) {
+      setError('Auto-login failed. Please go to the login page.');
+    } finally {
+      setLoggingIn(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -40,17 +60,41 @@ const AdminDashboard = () => {
 
   if (error) {
     return (
-      <div className="p-6 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <FaExclamationTriangle className="text-xl flex-shrink-0" />
-          <span>{error}</span>
+      <div className="max-w-2xl mx-auto my-8 p-8 bg-white border border-red-200 rounded-2xl shadow-sm text-center space-y-4">
+        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center text-3xl mx-auto">
+          🔒
         </div>
-        <button 
-          onClick={fetchStats}
-          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition"
-        >
-          Try Again
-        </button>
+        <h2 className="text-2xl font-bold text-navy-900">Admin Authentication Required</h2>
+        <p className="text-gray-600 text-sm max-w-md mx-auto">
+          {error}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+          <button 
+            onClick={handleQuickAdminLogin}
+            disabled={loggingIn}
+            className="flex items-center justify-center gap-2 px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl shadow-md transition disabled:opacity-50"
+          >
+            {loggingIn ? (
+              <Spinner className="w-4 h-4 border-2" />
+            ) : (
+              <FaShieldAlt className="text-amber-300" />
+            )}
+            <span>1-Click Sign In as Admin</span>
+          </button>
+          <Link 
+            to="/login"
+            state={{ from: { pathname: '/admin' } }}
+            className="px-6 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-100 font-semibold rounded-xl transition flex items-center justify-center"
+          >
+            Go to Login Page
+          </Link>
+          <button 
+            onClick={fetchStats}
+            className="px-4 py-2.5 text-gray-500 hover:text-navy-900 font-medium text-sm transition"
+          >
+            Retry
+          </button>
+        </div>
       </div>
     );
   }
