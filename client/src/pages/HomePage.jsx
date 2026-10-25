@@ -90,7 +90,7 @@ const HomePage = () => {
           {categories.map((cat) => (
             <Link 
               key={cat._id} 
-              to={`/products?category=${cat.name}`}
+              to={`/products?category=${encodeURIComponent(cat.name)}`}
               className="bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-2 border border-gray-100 flex flex-col items-center text-center group"
             >
               <div className="w-16 h-16 bg-orange-50 rounded-full flex items-center justify-center mb-4 text-3xl group-hover:scale-110 group-hover:bg-orange-100 transition-all duration-300">

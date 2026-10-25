@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import ProductCard from '../components/product/ProductCard';
@@ -16,33 +16,34 @@ const ProductListPage = () => {
   const [totalPages, setTotalPages] = useState(1);
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  const initialSearch = searchParams.get('search') || '';
-  const initialCategory = searchParams.get('category') || '';
-  const initialMinPrice = searchParams.get('minPrice') || '';
-  const initialMaxPrice = searchParams.get('maxPrice') || '';
-  const initialSort = searchParams.get('sort') || '';
-  const initialPage = parseInt(searchParams.get('page') || '1');
-
-  const [filters, setFilters] = useState({
-    search: initialSearch,
-    category: initialCategory,
-    minPrice: initialMinPrice,
-    maxPrice: initialMaxPrice,
-    sort: initialSort,
-    page: initialPage
-  });
+  // Derive active filters directly from current URL search parameters
+  const currentCategory = searchParams.get('category') || '';
+  const currentSearch = searchParams.get('search') || '';
+  const currentMinPrice = searchParams.get('minPrice') || '';
+  const currentMaxPrice = searchParams.get('maxPrice') || '';
+  const currentSort = searchParams.get('sort') || '';
+  const currentPage = parseInt(searchParams.get('page') || '1', 10);
 
   const [priceInput, setPriceInput] = useState({
-    min: initialMinPrice,
-    max: initialMaxPrice
+    min: currentMinPrice,
+    max: currentMaxPrice
   });
 
+  // Keep price inputs in sync with URL
+  useEffect(() => {
+    setPriceInput({
+      min: currentMinPrice,
+      max: currentMaxPrice
+    });
+  }, [currentMinPrice, currentMaxPrice]);
+
+  // Fetch categories once on mount
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const { data } = await api.get('/categories');
         if (data.success) {
-          setCategories(data.categories);
+          setCategories(data.categories || []);
         }
       } catch (error) {
         console.error('Error fetching categories:', error);
@@ -51,25 +52,24 @@ const ProductListPage = () => {
     fetchCategories();
   }, []);
 
+  // Fetch products whenever URL searchParams change
   useEffect(() => {
     const fetchProducts = async () => {
       setLoading(true);
       try {
-        const params = new URLSearchParams();
-        if (filters.search) params.append('search', filters.search);
-        if (filters.category) params.append('category', filters.category);
-        if (filters.minPrice) params.append('minPrice', filters.minPrice);
-        if (filters.maxPrice) params.append('maxPrice', filters.maxPrice);
-        if (filters.sort) params.append('sort', filters.sort);
-        if (filters.page > 1) params.append('page', filters.page);
+        const queryParams = new URLSearchParams();
+        if (currentSearch) queryParams.append('search', currentSearch);
+        if (currentCategory && currentCategory !== 'All') queryParams.append('category', currentCategory);
+        if (currentMinPrice) queryParams.append('minPrice', currentMinPrice);
+        if (currentMaxPrice) queryParams.append('maxPrice', currentMaxPrice);
+        if (currentSort) queryParams.append('sort', currentSort);
+        if (currentPage > 1) queryParams.append('page', currentPage.toString());
 
-        setSearchParams(params);
-
-        const { data } = await api.get(`/products?${params.toString()}`);
+        const { data } = await api.get(`/products?${queryParams.toString()}`);
         if (data.success) {
-          setProducts(data.products);
-          setTotalProducts(data.total);
-          setTotalPages(data.pages);
+          setProducts(data.products || []);
+          setTotalProducts(data.total || 0);
+          setTotalPages(data.pages || 1);
         }
       } catch (error) {
         console.error('Error fetching products:', error);
@@ -79,41 +79,65 @@ const ProductListPage = () => {
     };
 
     fetchProducts();
-  }, [filters, setSearchParams]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [currentCategory, currentSearch, currentMinPrice, currentMaxPrice, currentSort, currentPage]);
 
-  const handleFilterChange = (key, value) => {
-    setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
+  // Helper to update specific search param while preserving others
+  const updateParams = useCallback((newParams) => {
+    const next = new URLSearchParams(searchParams);
+    Object.entries(newParams).forEach(([key, value]) => {
+      if (value === '' || value === null || value === undefined || value === 'All') {
+        next.delete(key);
+      } else {
+        next.set(key, value.toString());
+      }
+    });
+    setSearchParams(next);
+  }, [searchParams, setSearchParams]);
+
+  const handleCategorySelect = (catName) => {
+    if (!catName || catName === 'All') {
+      updateParams({ category: '', page: 1 });
+    } else {
+      updateParams({ category: catName, page: 1 });
+    }
+  };
+
+  const handleSortChange = (sortVal) => {
+    updateParams({ sort: sortVal, page: 1 });
   };
 
   const applyPriceFilter = () => {
-    setFilters(prev => ({ 
-      ...prev, 
-      minPrice: priceInput.min, 
-      maxPrice: priceInput.max,
-      page: 1 
-    }));
+    updateParams({
+      minPrice: priceInput.min ? priceInput.min.trim() : '',
+      maxPrice: priceInput.max ? priceInput.max.trim() : '',
+      page: 1
+    });
   };
 
   const clearFilters = () => {
-    setFilters({ search: '', category: '', minPrice: '', maxPrice: '', sort: '', page: 1 });
     setPriceInput({ min: '', max: '' });
+    navigate('/products');
   };
 
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= totalPages) {
-      setFilters(prev => ({ ...prev, page: newPage }));
-      window.scrollTo(0, 0);
+      updateParams({ page: newPage });
     }
   };
+
+  const displayCategoryTitle = currentCategory && currentCategory !== 'All' 
+    ? currentCategory 
+    : (currentSearch ? `Search Results for "${currentSearch}"` : 'All Products');
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Mobile Filter Toggle */}
       <div className="md:hidden flex justify-between items-center mb-4">
-        <h1 className="text-2xl font-bold text-navy-900">Shop</h1>
+        <h1 className="text-2xl font-bold text-navy-900">{displayCategoryTitle}</h1>
         <button 
           onClick={() => setShowMobileFilters(!showMobileFilters)}
-          className="btn-outline flex items-center gap-2"
+          className="btn-outline flex items-center gap-2 px-4 py-2 border rounded-lg text-sm"
         >
           <FaFilter /> Filters
         </button>
@@ -125,48 +149,56 @@ const ProductListPage = () => {
           <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 sticky top-24">
             <div className="flex justify-between items-center mb-6">
               <h2 className="text-lg font-bold text-gray-800">Filters</h2>
-              <button onClick={clearFilters} className="text-sm text-orange-600 hover:underline">Clear All</button>
+              {(currentCategory || currentSearch || currentMinPrice || currentMaxPrice || currentSort) && (
+                <button onClick={clearFilters} className="text-xs font-semibold text-orange-600 hover:underline">
+                  Clear All
+                </button>
+              )}
             </div>
 
             {/* Category Filter */}
             <div className="mb-6">
-              <h3 className="font-semibold text-gray-700 mb-3">Categories</h3>
-              <div className="space-y-2 max-h-60 overflow-y-auto">
-                <label className="flex items-center gap-2 cursor-pointer">
+              <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Categories</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                <label className="flex items-center gap-2 cursor-pointer py-1 hover:text-orange-600">
                   <input 
                     type="radio" 
                     name="category"
-                    checked={filters.category === ''}
-                    onChange={() => handleFilterChange('category', '')}
+                    checked={!currentCategory || currentCategory === 'All'}
+                    onChange={() => handleCategorySelect('')}
                     className="text-orange-500 focus:ring-orange-500"
                   />
-                  <span className="text-gray-600">All Categories</span>
+                  <span className={`text-sm ${(!currentCategory || currentCategory === 'All') ? 'font-bold text-orange-600' : 'text-gray-600'}`}>
+                    All Products
+                  </span>
                 </label>
                 {categories.map(cat => (
-                  <label key={cat._id} className="flex items-center gap-2 cursor-pointer">
+                  <label key={cat._id} className="flex items-center gap-2 cursor-pointer py-1 hover:text-orange-600">
                     <input 
                       type="radio"
                       name="category"
-                      checked={filters.category === cat.name}
-                      onChange={() => handleFilterChange('category', cat.name)}
+                      checked={currentCategory === cat.name}
+                      onChange={() => handleCategorySelect(cat.name)}
                       className="text-orange-500 focus:ring-orange-500"
                     />
-                    <span className="text-gray-600">{cat.name}</span>
+                    <span className={`text-sm ${currentCategory === cat.name ? 'font-bold text-orange-600' : 'text-gray-600'}`}>
+                      {cat.name}
+                    </span>
                   </label>
                 ))}
               </div>
             </div>
 
             {/* Price Filter */}
-            <div>
-              <h3 className="font-semibold text-gray-700 mb-3">Price Range</h3>
+            <div className="pt-4 border-t border-gray-100">
+              <h3 className="font-semibold text-gray-700 mb-3 text-sm uppercase tracking-wide">Price Range (₹)</h3>
               <div className="flex items-center gap-2 mb-3">
                 <input 
                   type="number" 
                   placeholder="Min" 
                   value={priceInput.min}
                   onChange={(e) => setPriceInput({...priceInput, min: e.target.value})}
-                  className="input-field w-full text-sm py-1 px-2"
+                  className="w-full border border-gray-300 rounded-lg text-sm py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <span className="text-gray-400">-</span>
                 <input 
@@ -174,14 +206,14 @@ const ProductListPage = () => {
                   placeholder="Max" 
                   value={priceInput.max}
                   onChange={(e) => setPriceInput({...priceInput, max: e.target.value})}
-                  className="input-field w-full text-sm py-1 px-2"
+                  className="w-full border border-gray-300 rounded-lg text-sm py-1.5 px-3 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
               </div>
               <button 
                 onClick={applyPriceFilter}
-                className="w-full bg-gray-100 hover:bg-gray-200 text-gray-800 font-medium py-2 rounded-lg transition-colors text-sm"
+                className="w-full bg-gray-100 hover:bg-orange-500 hover:text-white text-gray-800 font-semibold py-2 rounded-lg transition-colors text-sm"
               >
-                Apply
+                Apply Price
               </button>
             </div>
           </div>
@@ -190,21 +222,21 @@ const ProductListPage = () => {
         {/* Main Content */}
         <main className="flex-1">
           {/* Header */}
-          <div className="hidden md:flex justify-between items-center mb-6">
+          <div className="hidden md:flex justify-between items-center mb-6 bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
             <div>
-              <h1 className="text-3xl font-bold text-navy-900">
-                {filters.category ? filters.category : 'All Products'}
+              <h1 className="text-2xl font-extrabold text-navy-900">
+                {displayCategoryTitle}
               </h1>
-              <p className="text-gray-500 mt-1">Showing {products.length} of {totalProducts} products</p>
+              <p className="text-xs text-gray-500 mt-1">Showing {products.length} of {totalProducts} items</p>
             </div>
             
             <div className="flex items-center gap-3">
-              <label htmlFor="sort" className="text-gray-600 text-sm">Sort by:</label>
+              <label htmlFor="sort" className="text-gray-600 text-sm font-medium">Sort by:</label>
               <select 
                 id="sort"
-                value={filters.sort}
-                onChange={(e) => handleFilterChange('sort', e.target.value)}
-                className="input-field py-2 bg-white"
+                value={currentSort}
+                onChange={(e) => handleSortChange(e.target.value)}
+                className="py-1.5 px-3 border border-gray-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer"
               >
                 <option value="">Featured</option>
                 <option value="-createdAt">Newest Arrivals</option>
@@ -216,11 +248,11 @@ const ProductListPage = () => {
           </div>
           
           {/* Mobile Sort */}
-          <div className="md:hidden mb-6">
+          <div className="md:hidden mb-4">
             <select 
-              value={filters.sort}
-              onChange={(e) => handleFilterChange('sort', e.target.value)}
-              className="input-field w-full py-2 bg-white"
+              value={currentSort}
+              onChange={(e) => handleSortChange(e.target.value)}
+              className="w-full py-2 px-3 border border-gray-300 rounded-lg text-sm bg-white"
             >
               <option value="">Sort: Featured</option>
               <option value="-createdAt">Newest Arrivals</option>
@@ -232,7 +264,7 @@ const ProductListPage = () => {
 
           {/* Product Grid */}
           {loading ? (
-            <div className="flex justify-center items-center py-20">
+            <div className="flex justify-center items-center py-24">
               <Spinner size="lg" />
             </div>
           ) : products.length > 0 ? (
@@ -247,9 +279,9 @@ const ProductListPage = () => {
               {totalPages > 1 && (
                 <div className="flex justify-center items-center mt-12 gap-2">
                   <button 
-                    onClick={() => handlePageChange(filters.page - 1)}
-                    disabled={filters.page === 1}
-                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage <= 1}
+                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                   >
                     Previous
                   </button>
@@ -259,9 +291,9 @@ const ProductListPage = () => {
                       <button
                         key={i}
                         onClick={() => handlePageChange(i + 1)}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center font-medium ${
-                          filters.page === i + 1 
-                            ? 'bg-navy-900 text-white' 
+                        className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-semibold transition ${
+                          currentPage === i + 1 
+                            ? 'bg-orange-500 text-white shadow-sm' 
                             : 'hover:bg-gray-100 text-gray-700'
                         }`}
                       >
@@ -271,9 +303,9 @@ const ProductListPage = () => {
                   </div>
                   
                   <button 
-                    onClick={() => handlePageChange(filters.page + 1)}
-                    disabled={filters.page === totalPages}
-                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage >= totalPages}
+                    className="px-4 py-2 border border-gray-200 rounded-lg hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium"
                   >
                     Next
                   </button>
@@ -281,11 +313,17 @@ const ProductListPage = () => {
               )}
             </>
           ) : (
-            <div className="text-center py-20 bg-white rounded-xl border border-gray-100 shadow-sm">
-              <h2 className="text-2xl font-bold text-gray-800 mb-2">No products found</h2>
-              <p className="text-gray-500 mb-6">Try adjusting your filters or searching for something else.</p>
-              <button onClick={clearFilters} className="btn-primary">
-                Clear All Filters
+            <div className="text-center py-20 bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
+              <div className="text-5xl mb-4">🔍</div>
+              <h2 className="text-2xl font-bold text-navy-900 mb-2">No products found</h2>
+              <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
+                We couldn't find any products matching your current filters.
+              </p>
+              <button 
+                onClick={clearFilters} 
+                className="px-6 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-bold rounded-xl transition shadow-sm"
+              >
+                View All Products
               </button>
             </div>
           )}

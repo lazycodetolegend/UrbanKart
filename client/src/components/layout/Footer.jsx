@@ -30,11 +30,11 @@ const Footer = () => {
           <div>
             <h3 className="font-bold text-lg mb-4 text-gray-100">Customer Service</h3>
             <ul className="space-y-2 text-sm text-gray-300">
-              <li><Link to="/account" className="hover:underline">Your Account</Link></li>
+              <li><Link to="/profile" className="hover:underline">Your Account</Link></li>
               <li><Link to="/orders" className="hover:underline">Your Orders</Link></li>
               <li><Link to="/shipping" className="hover:underline">Shipping Rates & Policies</Link></li>
               <li><Link to="/returns" className="hover:underline">Returns & Replacements</Link></li>
-              <li><Link to="/help" className="hover:underline">Help Center</Link></li>
+              <li><Link to="/admin" className="hover:underline text-amber-400 font-medium">👑 Admin Portal</Link></li>
             </ul>
           </div>
           <div>
@@ -53,7 +53,7 @@ const Footer = () => {
         <div className="flex flex-col md:flex-row justify-center items-center gap-4 text-xs text-gray-400 mb-2">
           <Link to="/conditions" className="hover:underline">Conditions of Use</Link>
           <Link to="/privacy" className="hover:underline">Privacy Notice</Link>
-          <Link to="/interest-based-ads" className="hover:underline">Interest-Based Ads</Link>
+          <Link to="/admin" className="hover:underline text-amber-500 font-medium">Admin Login</Link>
         </div>
         <p className="text-xs text-gray-400">© {new Date().getFullYear()}, UrbanKart.com, Inc. or its affiliates</p>
       </div>

@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FaDollarSign, FaShoppingBag, FaBox, FaUsers } from 'react-icons/fa';
+import { Link } from 'react-router-dom';
+import { FaRupeeSign, FaShoppingBag, FaBox, FaUsers, FaSync, FaExclamationTriangle, FaArrowRight } from 'react-icons/fa';
 import api from '../../services/api';
 import Spinner from '../../components/ui/Spinner';
 import { formatPrice } from '../../utils/formatPrice';
@@ -9,83 +10,159 @@ const AdminDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const response = await api.get('/admin/stats');
-        setStats(response.data);
-        setLoading(false);
-      } catch (err) {
-        setError('Failed to fetch dashboard stats.');
-        setLoading(false);
-      }
-    };
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      const response = await api.get('/admin/stats');
+      const data = response.data?.stats || response.data || {};
+      setStats(data);
+    } catch (err) {
+      console.error('Failed to fetch dashboard stats:', err);
+      setError('Failed to fetch dashboard statistics. Please ensure you are logged in as admin.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchStats();
   }, []);
 
-  if (loading) return <div className="flex justify-center p-12"><Spinner /></div>;
-  if (error) return <div className="text-red-500 bg-red-50 p-4 rounded-lg">{error}</div>;
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center p-16">
+        <Spinner size="lg" />
+        <p className="mt-4 text-gray-500 font-medium text-sm">Loading dashboard statistics...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6 bg-red-50 border border-red-200 text-red-700 rounded-xl flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <FaExclamationTriangle className="text-xl flex-shrink-0" />
+          <span>{error}</span>
+        </div>
+        <button 
+          onClick={fetchStats}
+          className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg text-sm font-medium transition"
+        >
+          Try Again
+        </button>
+      </div>
+    );
+  }
+
+  const totalSales = stats?.totalSales ?? 0;
+  const totalOrders = stats?.totalOrders ?? 0;
+  const totalProducts = stats?.totalProducts ?? 0;
+  const totalUsers = stats?.totalUsers ?? 0;
+  const bestSelling = stats?.bestSelling || [];
+  const lowStock = stats?.lowStock || [];
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-navy-900">Dashboard Overview</h1>
+    <div className="space-y-8">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
+        <div>
+          <h1 className="text-2xl font-extrabold text-navy-900 tracking-tight">Admin Dashboard Overview</h1>
+          <p className="text-sm text-gray-500 mt-1">Real-time store performance, catalog metrics, and inventory alerts.</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={fetchStats} 
+            className="flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-medium rounded-lg text-sm transition"
+          >
+            <FaSync className="text-xs" /> Refresh
+          </button>
+          <Link 
+            to="/admin/products/new" 
+            className="px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg text-sm transition shadow-sm"
+          >
+            + Add Product
+          </Link>
+        </div>
+      </div>
 
-      {/* Stat Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* 4 Main Stat Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
         <StatCard 
-          title="Total Sales" 
-          value={formatPrice(stats?.totalSales || 0)} 
-          icon={<FaDollarSign size={24} className="text-emerald-500" />} 
-          color="border-l-emerald-500"
+          title="Total Revenue" 
+          value={formatPrice(totalSales)} 
+          icon={<FaRupeeSign size={22} className="text-emerald-600" />} 
+          bgColor="bg-emerald-50 text-emerald-600"
+          borderAccent="border-emerald-500"
+          link="/admin/orders"
+          linkText="View Orders"
         />
         <StatCard 
           title="Total Orders" 
-          value={stats?.totalOrders || 0} 
-          icon={<FaShoppingBag size={24} className="text-blue-500" />} 
-          color="border-l-blue-500"
+          value={totalOrders} 
+          icon={<FaShoppingBag size={22} className="text-blue-600" />} 
+          bgColor="bg-blue-50 text-blue-600"
+          borderAccent="border-blue-500"
+          link="/admin/orders"
+          linkText="Manage Orders"
         />
         <StatCard 
-          title="Total Products" 
-          value={stats?.totalProducts || 0} 
-          icon={<FaBox size={24} className="text-orange-500" />} 
-          color="border-l-orange-500"
+          title="Active Products" 
+          value={totalProducts} 
+          icon={<FaBox size={22} className="text-orange-600" />} 
+          bgColor="bg-orange-50 text-orange-600"
+          borderAccent="border-orange-500"
+          link="/admin/products"
+          linkText="View Catalog"
         />
         <StatCard 
-          title="Total Users" 
-          value={stats?.totalUsers || 0} 
-          icon={<FaUsers size={24} className="text-purple-500" />} 
-          color="border-l-purple-500"
+          title="Registered Users" 
+          value={totalUsers} 
+          icon={<FaUsers size={22} className="text-purple-600" />} 
+          bgColor="bg-purple-50 text-purple-600"
+          borderAccent="border-purple-500"
+          link="/admin/users"
+          linkText="View Users"
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      {/* Two Column Section: Best Selling & Low Stock Alerts */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Best Selling Products */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-semibold text-navy-800">Best Selling Products</h2>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <h2 className="text-base font-bold text-navy-900 flex items-center gap-2">
+              🔥 Best Selling Products
+            </h2>
+            <Link to="/admin/orders" className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+              All Orders <FaArrowRight className="text-[10px]" />
+            </Link>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-500 text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-3 font-medium">Product Name</th>
-                  <th className="px-6 py-3 font-medium">Category</th>
-                  <th className="px-6 py-3 font-medium text-right">Sold</th>
+                  <th className="px-6 py-3 font-semibold">Product Name</th>
+                  <th className="px-6 py-3 font-semibold text-right">Units Sold</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {stats?.bestSelling?.length > 0 ? (
-                  stats.bestSelling.map((product) => (
-                    <tr key={product._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-navy-900">{product.name}</td>
-                      <td className="px-6 py-4 text-sm text-gray-500">{product.category?.name || product.category || '-'}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-gray-700 text-right">{product.sold || 0}</td>
+              <tbody className="divide-y divide-gray-100">
+                {bestSelling.length > 0 ? (
+                  bestSelling.map((product, idx) => (
+                    <tr key={product._id || idx} className="hover:bg-gray-50/70 transition">
+                      <td className="px-6 py-4 text-sm font-medium text-navy-900">
+                        {product.name || 'Unnamed Product'}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-navy-900 text-right">
+                        {product.sold || product.totalQty || 0}
+                      </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">No data available</td>
+                    <td colSpan="2" className="px-6 py-12 text-center text-sm text-gray-400">
+                      No order sales recorded yet. Once orders are placed, bestsellers will appear here.
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -94,35 +171,52 @@ const AdminDashboard = () => {
         </div>
 
         {/* Low Stock Alerts */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-            <h2 className="text-lg font-semibold text-navy-800">Low Stock Alerts</h2>
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50 flex justify-between items-center">
+            <h2 className="text-base font-bold text-navy-900 flex items-center gap-2">
+              ⚠️ Inventory Stock Watch
+            </h2>
+            <Link to="/admin/products" className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1">
+              Manage Stock <FaArrowRight className="text-[10px]" />
+            </Link>
           </div>
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-left">
-              <thead className="bg-gray-50 text-gray-500 text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wider">
                 <tr>
-                  <th className="px-6 py-3 font-medium">Product Name</th>
-                  <th className="px-6 py-3 font-medium text-right">Stock</th>
-                  <th className="px-6 py-3 font-medium text-center">Status</th>
+                  <th className="px-6 py-3 font-semibold">Product</th>
+                  <th className="px-6 py-3 font-semibold text-center">Remaining Stock</th>
+                  <th className="px-6 py-3 font-semibold text-right">Status</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
-                {stats?.lowStock?.length > 0 ? (
-                  stats.lowStock.map((product) => (
-                    <tr key={product._id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-navy-900">{product.name}</td>
-                      <td className="px-6 py-4 text-sm font-semibold text-red-600 text-right">{product.stock}</td>
-                      <td className="px-6 py-4 text-center">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${product.stock === 0 ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'}`}>
-                          {product.stock === 0 ? 'Out of Stock' : 'Low Stock'}
+              <tbody className="divide-y divide-gray-100">
+                {lowStock.length > 0 ? (
+                  lowStock.map((product) => (
+                    <tr key={product._id} className="hover:bg-gray-50/70 transition">
+                      <td className="px-6 py-4 text-sm font-medium text-navy-900 truncate max-w-xs">
+                        {product.name}
+                      </td>
+                      <td className="px-6 py-4 text-sm font-bold text-center text-gray-700">
+                        {product.stock}
+                      </td>
+                      <td className="px-6 py-4 text-right">
+                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                          product.stock === 0 
+                            ? 'bg-red-100 text-red-800' 
+                            : product.stock <= 20 
+                            ? 'bg-amber-100 text-amber-800' 
+                            : 'bg-emerald-100 text-emerald-800'
+                        }`}>
+                          {product.stock === 0 ? 'Out of Stock' : product.stock <= 20 ? 'Critical' : 'Healthy'}
                         </span>
                       </td>
                     </tr>
                   ))
                 ) : (
                   <tr>
-                    <td colSpan="3" className="px-6 py-4 text-center text-sm text-gray-500">No low stock items</td>
+                    <td colSpan="3" className="px-6 py-12 text-center text-sm text-gray-400">
+                      All products currently have abundant inventory!
+                    </td>
                   </tr>
                 )}
               </tbody>
@@ -134,15 +228,22 @@ const AdminDashboard = () => {
   );
 };
 
-const StatCard = ({ title, value, icon, color }) => (
-  <div className={`bg-white rounded-xl p-6 shadow-sm border border-gray-200 border-l-4 ${color} flex items-center justify-between`}>
-    <div>
-      <p className="text-sm font-medium text-gray-500 mb-1">{title}</p>
-      <h3 className="text-2xl font-bold text-navy-900">{value}</h3>
+const StatCard = ({ title, value, icon, bgColor, borderAccent, link, linkText }) => (
+  <div className={`bg-white rounded-2xl p-6 shadow-sm border border-gray-100 border-l-4 ${borderAccent} flex flex-col justify-between hover:shadow-md transition-shadow`}>
+    <div className="flex items-center justify-between mb-3">
+      <span className="text-xs font-bold uppercase tracking-wider text-gray-500">{title}</span>
+      <div className={`p-2.5 rounded-xl ${bgColor}`}>
+        {icon}
+      </div>
     </div>
-    <div className="p-3 bg-gray-50 rounded-full">
-      {icon}
+    <div className="mb-4">
+      <h3 className="text-3xl font-extrabold text-navy-900 tracking-tight">{value}</h3>
     </div>
+    {link && (
+      <Link to={link} className="text-xs font-semibold text-orange-600 hover:text-orange-700 flex items-center gap-1 transition-colors">
+        {linkText} <FaArrowRight className="text-[10px]" />
+      </Link>
+    )}
   </div>
 );
 

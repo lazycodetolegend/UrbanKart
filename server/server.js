@@ -23,12 +23,30 @@ connectDB();
 const app = express();
 
 // CORS must come first
+const allowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:5174',
+  'http://localhost:3000',
+  'http://127.0.0.1:5173',
+  'http://127.0.0.1:5174',
+  process.env.CLIENT_URL,
+  'https://urban-kart-sandy.vercel.app',
+  'https://urban-kart-git-main-sayam4.vercel.app',
+].filter(Boolean);
+
 app.use(
   cors({
-    origin: [
-      'https://urban-kart-sandy.vercel.app',
-      'https://urban-kart-git-main-sayam4.vercel.app',
-    ],
+    origin: function (origin, callback) {
+      if (!origin) return callback(null, true);
+      if (
+        allowedOrigins.includes(origin) ||
+        origin.startsWith('http://localhost:') ||
+        origin.startsWith('http://127.0.0.1:')
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, true); // Permissive in dev to never block localhost
+    },
     credentials: true,
   })
 );

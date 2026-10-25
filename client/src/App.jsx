@@ -47,6 +47,7 @@ function App() {
       {/* Admin Routes */}
       <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
         <Route index element={<AdminDashboard />} />
+        <Route path="dashboard" element={<AdminDashboard />} />
         <Route path="products" element={<AdminProducts />} />
         <Route path="products/new" element={<AdminProductForm />} />
         <Route path="products/:id/edit" element={<AdminProductForm />} />

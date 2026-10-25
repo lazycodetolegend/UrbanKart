@@ -97,6 +97,10 @@ const ProductDetailPage = () => {
               <img 
                 src={product.images[activeImage]} 
                 alt={product.name}
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=800&q=80';
+                }}
                 className="w-full h-full object-contain mix-blend-multiply"
               />
             ) : (

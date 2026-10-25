@@ -17,11 +17,24 @@ export const getProducts = async (req, res, next) => {
       query.name = { $regex: search, $options: 'i' };
     }
 
-    // Filter by category name — resolve to ObjectId
+    // Filter by category name or id — resolve to ObjectId
     if (category && category !== 'All') {
-      const categoryDoc = await Category.findOne({ name: { $regex: new RegExp(`^${category}$`, 'i') } });
-      if (categoryDoc) {
-        query.category = categoryDoc._id;
+      if (mongoose.isValidObjectId(category)) {
+        query.category = category;
+      } else {
+        const escaped = category.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const categoryDoc = await Category.findOne({
+          $or: [
+            { name: { $regex: new RegExp(`^${escaped}$`, 'i') } },
+            { slug: category.trim().toLowerCase() },
+          ],
+        });
+        if (categoryDoc) {
+          query.category = categoryDoc._id;
+        } else {
+          // If category does not match anything in DB, set to null so no products match
+          query.category = new mongoose.Types.ObjectId();
+        }
       }
     }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaShoppingCart, FaUser, FaSearch, FaBars, FaTimes } from 'react-icons/fa';
+import { FaShoppingCart, FaUser, FaSearch, FaBars, FaTimes, FaShieldAlt } from 'react-icons/fa';
 import { useAuth } from '../../context/AuthContext';
 import { useCart } from '../../context/CartContext';
 
@@ -15,7 +15,8 @@ const Header = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      navigate(`/products?search=${searchQuery}&category=${category}`);
+      const catParam = category && category !== 'All' ? `&category=${encodeURIComponent(category)}` : '';
+      navigate(`/products?search=${encodeURIComponent(searchQuery.trim())}${catParam}`);
     }
   };
 
@@ -50,7 +51,7 @@ const Header = () => {
             </select>
             <input 
               type="text" 
-              placeholder="Search UrbanKart" 
+              placeholder="Search products, brands, essentials..." 
               className="flex-1 px-4 py-2 text-black outline-none"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -62,36 +63,77 @@ const Header = () => {
         </div>
 
         {/* Right Section */}
-        <div className="flex items-center gap-5">
+        <div className="flex items-center gap-4">
+          {/* Prominent Admin Panel Quick Link for Admin User */}
+          {user?.role === 'admin' ? (
+            <Link 
+              to="/admin" 
+              className="hidden sm:flex items-center gap-2 bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow-md shadow-orange-500/20 transition-all hover:scale-105"
+            >
+              <FaShieldAlt className="text-sm" />
+              <span>Admin Panel</span>
+            </Link>
+          ) : (
+            <Link 
+              to="/admin" 
+              className="hidden lg:flex items-center gap-1.5 text-xs text-gray-400 hover:text-white px-2 py-1 rounded transition border border-gray-700 hover:border-gray-500"
+              title="Admin Portal"
+            >
+              <FaShieldAlt className="text-xs" />
+              <span>Admin</span>
+            </Link>
+          )}
+
           {/* User Menu */}
           <div className="relative group cursor-pointer">
             <div className="flex items-center gap-2 hover:text-orange-500 transition p-2">
               <FaUser className="text-xl hidden sm:block" />
               <div className="flex flex-col leading-tight">
-                <span className="text-xs text-gray-300">Hello, {user ? user.name.split(' ')[0] : 'sign in'}</span>
+                <span className="text-xs text-gray-300">
+                  {user ? `Hello, ${user.name.split(' ')[0]}` : 'Hello, Sign In'}
+                </span>
                 <span className="font-bold text-sm hidden sm:block">Account & Lists</span>
               </div>
             </div>
             
             {/* Dropdown */}
-            <div className="absolute right-0 top-full mt-1 w-48 bg-white text-black shadow-xl rounded-md opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200 z-50 py-2">
+            <div className="absolute right-0 top-full mt-1 w-52 bg-white text-black shadow-xl rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 border border-gray-200 z-50 py-2">
               {user ? (
                 <>
-                  <div className="px-4 py-2 border-b border-gray-100">
-                    <p className="font-semibold">{user.name}</p>
+                  <div className="px-4 py-2 border-b border-gray-100 bg-gray-50/50">
+                    <p className="font-semibold text-sm text-navy-900">{user.name}</p>
                     <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    {user.role === 'admin' && (
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">
+                        👑 Administrator
+                      </span>
+                    )}
                   </div>
-                  <Link to="/profile" className="block px-4 py-2 hover:bg-orange-50 hover:text-orange-600">Your Profile</Link>
-                  <Link to="/orders" className="block px-4 py-2 hover:bg-orange-50 hover:text-orange-600">Your Orders</Link>
                   {user.role === 'admin' && (
-                    <Link to="/admin" className="block px-4 py-2 hover:bg-orange-50 hover:text-orange-600">Admin Dashboard</Link>
+                    <Link to="/admin" className="block px-4 py-2 font-bold text-orange-600 hover:bg-orange-50 flex items-center gap-2 border-b border-gray-100">
+                      <FaShieldAlt className="text-orange-500" /> Admin Dashboard
+                    </Link>
                   )}
-                  <button onClick={logout} className="block w-full text-left px-4 py-2 hover:bg-orange-50 hover:text-orange-600 text-red-600 mt-1 border-t border-gray-100">Sign Out</button>
+                  <Link to="/profile" className="block px-4 py-2 hover:bg-gray-50 text-sm">Your Profile</Link>
+                  <Link to="/orders" className="block px-4 py-2 hover:bg-gray-50 text-sm">Your Orders</Link>
+                  <Link to="/wishlist" className="block px-4 py-2 hover:bg-gray-50 text-sm">Your Wishlist</Link>
+                  <button onClick={logout} className="block w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 text-sm mt-1 border-t border-gray-100">
+                    Sign Out
+                  </button>
                 </>
               ) : (
                 <div className="p-4 text-center">
-                  <Link to="/login" className="btn-primary block w-full mb-2 py-1.5 text-sm">Sign In</Link>
-                  <p className="text-xs">New customer? <Link to="/register" className="text-orange-500 hover:underline">Start here.</Link></p>
+                  <Link to="/login" className="btn-primary block w-full mb-2 py-2 text-sm font-bold bg-orange-500 hover:bg-orange-600 text-white rounded-lg">
+                    Sign In
+                  </Link>
+                  <p className="text-xs text-gray-500">
+                    New customer? <Link to="/register" className="text-orange-500 hover:underline font-semibold">Start here.</Link>
+                  </p>
+                  <div className="mt-3 pt-3 border-t border-gray-100 text-left">
+                    <Link to="/admin" className="text-xs text-gray-600 hover:text-orange-600 flex items-center gap-1.5 font-medium">
+                      <FaShieldAlt className="text-amber-500 text-xs" /> Admin Portal
+                    </Link>
+                  </div>
                 </div>
               )}
             </div>
@@ -128,19 +170,31 @@ const Header = () => {
 
       {/* Bottom Nav Bar */}
       <div className="bg-navy-700 text-white text-sm">
-        <nav className={`md:flex ${isMenuOpen ? 'block' : 'hidden'} overflow-x-auto whitespace-nowrap px-4 py-2`}>
+        <nav className={`md:flex items-center justify-between overflow-x-auto whitespace-nowrap px-4 py-2 ${isMenuOpen ? 'block' : 'hidden'}`}>
           <ul className="flex flex-col md:flex-row gap-2 md:gap-6">
             {categories.map((cat) => (
               <li key={cat}>
                 <Link 
-                  to={`/products?category=${cat}`} 
-                  className="block py-2 md:py-1 px-2 hover:border-white border border-transparent rounded transition-colors"
+                  to={cat === 'All' ? '/products' : `/products?category=${encodeURIComponent(cat)}`} 
+                  className="block py-2 md:py-1 px-2 hover:border-white border border-transparent rounded transition-colors font-medium"
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {cat}
                 </Link>
               </li>
             ))}
+            {/* Mobile Admin Link */}
+            {user?.role === 'admin' && (
+              <li className="md:hidden border-t border-navy-600 pt-2">
+                <Link 
+                  to="/admin" 
+                  className="block py-2 px-2 text-amber-400 font-bold flex items-center gap-2"
+                  onClick={() => setIsMenuOpen(false)}
+                >
+                  <FaShieldAlt /> 👑 Admin Dashboard
+                </Link>
+              </li>
+            )}
           </ul>
         </nav>
       </div>

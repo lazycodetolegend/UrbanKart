@@ -6,9 +6,11 @@ export const getStats = async (req, res, next) => {
   try {
     const totalUsers = await User.countDocuments();
     const totalOrders = await Order.countDocuments();
+    const totalProducts = await Product.countDocuments();
 
+    // Calculate total sales from non-cancelled orders (or delivered orders)
     const salesData = await Order.aggregate([
-      { $match: { orderStatus: 'Delivered' } },
+      { $match: { orderStatus: { $ne: 'Cancelled' } } },
       { $group: { _id: null, totalSales: { $sum: '$totalAmount' } } },
     ]);
     const totalSales = salesData.length > 0 ? salesData[0].totalSales : 0;
@@ -20,23 +22,32 @@ export const getStats = async (req, res, next) => {
           _id: '$items.product',
           name: { $first: '$items.name' },
           totalQty: { $sum: '$items.qty' },
+          sold: { $sum: '$items.qty' },
         },
       },
       { $sort: { totalQty: -1 } },
-      { $limit: 5 },
+      { $limit: 6 },
     ]);
 
-    const lowStock = await Product.find({ stock: { $lte: 5 } }).select('name stock');
+    const lowStock = await Product.find({ stock: { $lte: 100 } })
+      .select('name stock price category images')
+      .populate('category', 'name')
+      .sort('stock')
+      .limit(8);
+
+    const statsObj = {
+      totalUsers,
+      totalOrders,
+      totalProducts,
+      totalSales,
+      bestSelling,
+      lowStock,
+    };
 
     res.json({
       success: true,
-      stats: {
-        totalUsers,
-        totalOrders,
-        totalSales,
-        bestSelling,
-        lowStock,
-      },
+      stats: statsObj,
+      ...statsObj,
     });
   } catch (error) {
     next(error);
